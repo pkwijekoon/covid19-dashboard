@@ -334,8 +334,8 @@ tbl <- reactable::reactable(df_rates,
                       defaultSortOrder = "desc",
                      defaultSorted = "Confirmed",
                      columns = list(
-                       country = reactable::colDef(name = "Country", minWidth = 50, maxWidth = 100),
-                       Confirmed = reactable::colDef(name = "Confirmed",  minWidth = 50, maxWidth = 100, defaultSortOrder = "desc"),
+                     country = reactable::colDef(name = "Country", minWidth = 50, maxWidth = 100),
+                       Confirmed = reactable::colDef(name = "Confirmed",  minWidth = 50, maxWidth = 120, defaultSortOrder = "desc"),
                        Recovered = reactable::colDef(name = "Recovered",  minWidth = 50, maxWidth = 100),
                        Death = reactable::colDef(name = "Death",  minWidth = 50, maxWidth = 100),
                        recovery_rate = reactable::colDef(name = "Recovery Rate",  minWidth = 50, maxWidth = 200,
@@ -360,8 +360,8 @@ tbl <- reactable::reactable(df_rates,
 library(htmltools)
 htmltools::div(class = "standings",
   htmltools::div(class = "title",
-    htmltools::h2("Total Number of Covid19 Cases by Country"),
-    "Clich on the columns names to resort the table"
+  htmltools::h3("Total Number of Covid19 Cases by Country"),
+    "Click on the columns names to resort the table"
   ),
   tbl,
   paste("Data last updated on", max(df$date))
