@@ -1,0 +1,472 @@
+---
+title: "Covid 19 dashboard for Sri Lanka"
+author: "Pushpakanthie Wijekoon"
+date: "Last compiled on `r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    social: menu
+    #source_code: embed
+    vertical_layout: scroll
+---
+
+
+```{r setup, include=FALSE}
+#------------------ Packages ------------------
+library(flexdashboard)
+# install.packages("devtools")
+# devtools::install_github("RamiKrispin/coronavirus", force = TRUE)
+library(coronavirus)
+data(coronavirus)
+# View(coronavirus)
+# max(coronavirus$date)
+
+`%>%` <- magrittr::`%>%`
+#------------------ Parameters ------------------
+# Set colors
+# https://www.w3.org/TR/css-color-3/#svg-color
+confirmed_color <- "#800080"
+active_color <- "#1f77b4"
+recovered_color <- "#808000"
+death_color <- "#CB4154"
+#------------------ Data ------------------
+
+df <- read.csv("https://raw.githubusercontent.com/RamiKrispin/coronavirus/master/csv/coronavirus.csv", stringsAsFactors = FALSE) 
+df %>%
+   # dplyr::filter(date == max(date)) %>%
+  dplyr::filter(country == "Sri Lanka") %>%
+  dplyr::group_by(country, type) %>%
+  dplyr::summarise(total = sum(cases)) %>%
+  tidyr::pivot_wider(
+    names_from = type,
+    values_from = total
+  ) %>%
+  # dplyr::mutate(unrecovered = confirmed - ifelse(is.na(recovered), 0, recovered) - ifelse(is.na(death), 0, death)) %>%
+  dplyr::mutate(unrecovered = confirmed - ifelse(is.na(death), 0, death)) %>%
+  dplyr::arrange(-confirmed) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(country = dplyr::if_else(country == "United Arab Emirates", "UAE", country)) %>%
+  dplyr::mutate(country = dplyr::if_else(country == "Mainland China", "China", country)) %>%
+  dplyr::mutate(country = dplyr::if_else(country == "North Macedonia", "N.Macedonia", country)) %>%
+  dplyr::mutate(country = trimws(country)) %>%
+  dplyr::mutate(country = factor(country, levels = country))
+
+df_daily <- df %>%
+  dplyr::filter(country == "Sri Lanka") %>%
+  dplyr::group_by(date, type) %>%
+  dplyr::summarise(total = sum(cases, na.rm = TRUE)) %>%
+  tidyr::pivot_wider(
+    names_from = type,
+    values_from = total
+  ) %>%
+  dplyr::arrange(date) %>%
+  dplyr::ungroup() %>%
+  #dplyr::mutate(active = confirmed - death - recovered) %>%
+  dplyr::mutate(active = confirmed - death) %>%
+  dplyr::mutate(
+    confirmed_cum = cumsum(confirmed),
+    death_cum = cumsum(death),
+    # recovered_cum = cumsum(recovered),
+    active_cum = cumsum(active)
+  )
+
+df1 <- df  %>% dplyr::filter(date == max(date))
+
+```
+  
+  
+```{r}
+df_tree <- df %>%
+  dplyr::group_by(country, type) %>%
+  dplyr::summarise(total = sum(cases), .groups = "drop") %>%
+  dplyr::mutate(type = ifelse(type == "confirmed", "Confirmed", type),
+                type = ifelse(type == "recovered", "Recovered", type),
+                type = ifelse(type == "death", "Death", type)) %>%
+  tidyr::pivot_wider(names_from = type, values_from = total) %>%
+  dplyr::mutate(Active = Confirmed - Death - Recovered) %>%
+  tidyr::pivot_longer(cols = -country, names_to = "type", values_to = "total")
+
+df_world <- df_tree %>%
+  dplyr::group_by(type) %>%
+  dplyr::summarise(total = sum(total), .groups = "drop") %>%
+  tidyr::pivot_wider(names_from = type, values_from = total)
+
+names(df_world) <- tolower(names(df_world))
+```
+  
+
+Row {data-width=400}
+-----------------------------------------------------------------------
+  
+### confirmed {.value-box}      
+
+```{r}
+valueBox(
+  value = paste(format(sum(df_daily$confirmed), big.mark = ","), "", sep = " "),
+  caption = "Total confirmed cases",
+  icon = "fas fa-user-md",
+  color = confirmed_color
+)
+```
+  
+### recovered {.value-box}
+
+```{r}
+
+valueBox(
+  value = paste(format(sum(df_daily$recovered, na.rm = TRUE), big.mark = ","), " (",
+    round(100 * sum(df_daily$recovered, na.rm = TRUE) / sum(df_daily$confirmed), 2),
+    "%)",
+    sep = ""
+  ),
+  caption = "Recovered Cases (recovered rate)",
+  icon = "fas fa-heartbeat",
+  color = recovered_color
+)
+```
+
+
+### death {.value-box}         
+
+```{r}
+valueBox(
+  value = paste(format(sum(df_daily$death, na.rm = TRUE), big.mark = ","), " (",
+    round(100 * sum(df_daily$death, na.rm = TRUE)/ sum(df_daily$confirmed), 2),
+    "%)",
+    sep = ""
+  ),
+  caption = "Death cases (death rate)",
+  icon = "fas fa-heart-broken",
+  color = death_color
+)
+```
+
+   
+Row {.tabset}  
+-----------------------------------------------------------------------
+  
+
+### **Daily cumulative cases**    
+
+```{r}
+plotly::plot_ly(data = df_daily, height=400, width=900)%>%
+  plotly::add_trace(
+    x = ~date,
+    # y = ~active_cum,
+    y = ~confirmed_cum,
+    type = "scatter",
+    mode = "lines+markers",
+    # name = "Active",
+    name = "Confirmed",
+    line = list(color = active_color),
+    marker = list(color = active_color)
+  ) %>%
+  plotly::add_trace(
+    x = ~date,
+    y = ~death_cum,
+    type = "scatter",
+    mode = "lines+markers",
+    name = "Death",
+    line = list(color = death_color),
+    marker = list(color = death_color)
+  ) %>%
+  plotly::add_annotations(
+    x = as.Date("2020-01-27"),
+    y = 1,
+    text = paste("First case"),
+    xref = "x",
+    yref = "y",
+    arrowhead = 5,
+    arrowhead = 3,
+    arrowsize = 1,
+    showarrow = TRUE,
+    ax = -50,
+    ay = -90
+  ) %>%
+  plotly::add_annotations(
+    x = as.Date("2020-03-28"),
+    y = 3,
+    text = paste("First death"),
+    xref = "x",
+    yref = "y",
+    arrowhead = 5,
+    arrowhead = 3,
+    arrowsize = 1,
+    showarrow = TRUE,
+    ax = 30,
+    ay = -90
+  ) %>%
+  plotly::add_annotations(
+    x = as.Date("2020-03-20"),
+    y = 14,
+    text = paste(
+      "Lockdown styled curfew"
+    ),
+    xref = "x",
+    yref = "y",
+    arrowhead = 5,
+    arrowhead = 3,
+    arrowsize = 1,
+    showarrow = TRUE,
+    ax = -70,
+    ay = -90
+  ) %>%
+  plotly::layout(
+    title = "",
+    yaxis = list(title = "Cumulative number of cases",titlefont = list(size = 9), tickfont = list(size = 9)),
+    xaxis = list(title = "Date",titlefont = list(size = 9), tickfont = list(size = 9)),
+    legend = list(x = 0.4, y = 1.5, font = list(size = 10)),
+    hovermode = "compare",
+    margin = list(
+      # l = 60,
+      # r = 40,
+      b = 5,
+      t = 5
+      #pad = 2
+      )
+  )
+```
+
+
+### **Daily confirmed cases**  
+
+```{r}
+daily_confirmed <-df %>%
+  dplyr::filter(type == "confirmed") %>%
+  dplyr::filter(date >= "2020-01-27") %>%
+  dplyr::mutate(country = country) %>%
+  dplyr::group_by(date, country) %>%
+  dplyr::summarise(total = sum(cases)) %>%
+  dplyr::ungroup() %>%
+  tidyr::pivot_wider(names_from = country, values_from = total)
+#names(daily_confirmed)[names(daily_confirmed) == 'Sri Lanka'] <- 'sl'
+
+#----------------------------------------
+# Plotting the data
+
+daily_confirmed %>%
+  plotly::plot_ly(height=400, width=900) %>%
+  plotly::add_trace(
+    x = ~date,
+    y = ~`Sri Lanka`,
+    type = "scatter",
+    mode = "lines+markers",
+    name = "Sri Lanka"
+  ) %>%
+  plotly::add_trace(
+     x = ~date,
+     y = ~Maldives,
+     type = "scatter",
+     mode = "lines+markers",
+     name = "Maldives"
+   ) %>%
+   plotly::add_trace(
+     x = ~date,
+     y = ~Bhutan,
+     type = "scatter",
+     mode = "lines+markers",
+     name = "Bhutan"
+   ) %>%
+  #plotly::add_trace(
+    #x = ~date,
+    #y = ~Burma,
+    #type = "scatter",
+    #mode = "lines+markers",
+    #name = "Burma"
+  #) %>%
+  plotly::add_trace(
+    x = ~date,
+    y = ~Vietnam,
+    type = "scatter",
+    mode = "lines+markers",
+    name = "Vietnam"
+  ) %>%
+  #plotly::add_trace(
+    #x = ~date,
+    #y = ~Singapore,
+    #type = "scatter",
+    #mode = "lines+markers",
+    #name = "Singapore"
+  #) %>%
+  plotly::layout(
+    title = "",
+    legend = list(x = 0.1, y = 0.98),
+    yaxis = list(title = "Daily confirmed cases",titlefont = list(size = 9), tickfont = list(size = 9)),
+    xaxis = list(title = "Date", titlefont = list(size = 9), tickfont = list(size = 9)),
+    # paper_bgcolor = "black",
+    # plot_bgcolor = "black",
+    # font = list(color = 'white'),
+    hovermode = "compare",
+    margin = list(
+      # l = 60,
+      # r = 40,
+      b = 5,
+      t = 5
+      #pad = 2
+    )
+  )
+```
+
+
+### **Recovery and Death rates**  
+
+
+```{r}
+df_rates <- df_tree %>%
+  dplyr::filter(type != "Active") %>%
+  tidyr::pivot_wider(names_from = "type", values_from = "total") %>%
+  dplyr::mutate(recovery_rate = Recovered / Confirmed,
+    death_rate = Death / Confirmed) 
+
+
+bar_chart <- function(label, width = "100%", height = "14px", fill = "#00bfc4", background = NULL) {
+  bar <- htmltools::div(style = list(background = fill, width = width, height = height))
+  chart <- htmltools::div(style = list(flexGrow = 1, marginLeft = "6px", background = background), bar)
+  htmltools::div(style = list(display = "flex", alignItems = "center"), label, chart)
+}
+
+tbl <- reactable::reactable(df_rates,
+                     searchable = TRUE,
+                     pagination = FALSE,
+                     highlight = TRUE,
+                     height = 400,
+                     sortable = TRUE,
+                     borderless = TRUE,
+                     defaultPageSize = nrow(df_rates),
+                      defaultSortOrder = "desc",
+                     defaultSorted = "Confirmed",
+                     columns = list(
+                     country = reactable::colDef(name = "Country", minWidth = 50, maxWidth = 100),
+                       Confirmed = reactable::colDef(name = "Confirmed",  minWidth = 50, maxWidth = 120, defaultSortOrder = "desc"),
+                       Recovered = reactable::colDef(name = "Recovered",  minWidth = 50, maxWidth = 100),
+                       Death = reactable::colDef(name = "Death",  minWidth = 50, maxWidth = 100),
+                       recovery_rate = reactable::colDef(name = "Recovery Rate",  minWidth = 50, maxWidth = 200,
+                                                        defaultSortOrder = "desc",
+                                                      cell = function(value) {
+                                                        # Format as percentages with 1 decimal place
+                                                        value <- paste0(format(round(value * 100, 2), nsmall = 1), "%")
+                                                        bar_chart(value, width = value, fill = "green", background = "#e1e1e1")
+                                                      },
+                       align = "left"),
+                       death_rate = reactable::colDef(name = "Death Rate",  
+                                                      minWidth = 50, maxWidth = 200,
+                                                      defaultSortOrder = "desc",
+                                                      cell = function(value) {
+                                                        # Format as percentages with 1 decimal place
+                                                        value <- paste0(format(round(value * 100, 2), nsmall = 1), "%")
+                                                        bar_chart(value, width = value, fill = "red", background = "#e1e1e1")
+                                                      },
+                       align = "left"))
+)
+
+library(htmltools)
+htmltools::div(class = "standings",
+  htmltools::div(class = "title",
+  htmltools::h4(strong("Total Number of Covid19 Cases by Country")),
+    h6("Click on the columns names to resort the table"
+  )),
+  tbl,
+  paste("Data last updated on", max(df$date))
+)
+
+```
+  
+### **Total Cases comparison**    
+
+```{r}
+df_t2 <- df_tree %>%
+  dplyr::filter(country == "Sri Lanka" |
+    country == "Singapore" |
+    country == "Afghanistan" |
+    country == "Bangladesh" |
+    country == "Bhutan" |
+    country == "Burma" |
+    country == "Cambodia" | 
+    country == "Indonesia" |
+    country == "Malaysia" |
+    country == "Maldives" |
+    country == "Nepal" |   
+    country == "Pakistan" |
+    country == "Philippines" |
+    country == "Taiwan" |
+    country == "Thailand" |
+    country == "Vietnam")
+
+plotly::plot_ly(height=300, width=900,
+  data = df_t2 %>% dplyr::filter(type == "Confirmed"),
+  type= "treemap",
+  values = ~total,
+  labels= ~ country,
+  parents=  ~type,
+  domain = list(column=0),
+  name = "Confirmed",
+  textinfo="label+value+percent parent"
+) %>%  
+ plotly::add_trace(
+    data = df_t2 %>% dplyr::filter(type == "Recovered"),
+    type= "treemap",
+    values = ~total,
+    labels= ~ country,
+    parents=  ~type,
+    domain = list(column=1),
+    name = "Recovered",
+    textinfo="label+value+percent parent"
+  ) %>%
+  plotly::add_trace(
+    data = df_t2 %>% dplyr::filter(type == "Death"),
+    type= "treemap",
+    values = ~total,
+    labels= ~ country,
+    parents=  ~type,
+    domain = list(column=2),
+    name = "Death",
+    textinfo="label+value+percent parent"
+  ) %>%
+  plotly::layout(grid=list(columns=3, rows=1))  
+
+ 
+```
+
+
+### **Dashboard Info**  
+
+
+**The Covid 19 Dashboard for Sri Lanka**
+
+This [Covid 19 dashboard: the case of Sri Lanka](https://www.antoinesoetewey.com/files/coronavirus-dashboard.html) provides an overview of the 2019 Novel Coronavirus COVID-19 (2019-nCoV) epidemic for Sri Lanka. This dashboard is developed using the [flexdashboard](https://rmarkdown.rstudio.com/flexdashboard/) framework in R/R Studio, and by referring the following two dashboards:  
+1. [dashboard](https://ramikrispin.github.io/coronavirus_dashboard/){target="_blank"} developed by Rami Krispin, and  
+2. [dashboard](https://www.antoinesoetewey.com/files/coronavirus-dashboard.html) developed by Antoine Soetewey.  
+
+**Data**
+
+This data set contains the following fields:  
+* ```date``` - The date of the summary  
+* ```province``` - The province or state, when applicable  
+* ```country``` - The country or region name  
+* ```lat``` - Latitude point  
+* ```long``` - Longitude point  
+* ```type``` - the type of case (i.e., confirmed, death)  
+* ```cases``` - the number of daily cases (corresponding to the case type)  
+
+Download the data set from  [`{coronavirus}`](https://github.com/RamiKrispin/coronavirus){target="_blank"} R package. Make sure to download the development version of the package to have the latest data:
+
+```
+install.packages("devtools")
+devtools::install_github("RamiKrispin/coronavirus")
+```
+
+The data and dashboard are refreshed on a daily basis.
+
+The raw data is pulled from the Johns Hopkins University Center for Systems Science and Engineering (JHU CCSE) Coronavirus [repository](https://github.com/RamiKrispin/coronavirus-csv){target="_blank"}.  
+
+
+**Information**  
+More information about this dashboard can be found in this [article](https://www.statsandr.com/blog/how-to-create-a-simple-coronavirus-dashboard-specific-to-your-country-in-r/).  
+
+
+**Update**  
+The dashboard has been updated on `r format(Sys.time(), "%A %B %d, %Y")`.
+
+
+
+
