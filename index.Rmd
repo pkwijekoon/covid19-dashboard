@@ -180,7 +180,7 @@ plotly::plot_ly(data = df_daily, height=400, width=900)%>%
     arrowhead = 3,
     arrowsize = 1,
     showarrow = TRUE,
-    ax = -50,
+    ax = -10,
     ay = -90
   ) %>%
   plotly::add_annotations(
@@ -193,7 +193,7 @@ plotly::plot_ly(data = df_daily, height=400, width=900)%>%
     arrowhead = 3,
     arrowsize = 1,
     showarrow = TRUE,
-    ax = 30,
+    ax = 90,
     ay = -90
   ) %>%
   plotly::add_annotations(
@@ -208,7 +208,7 @@ plotly::plot_ly(data = df_daily, height=400, width=900)%>%
     arrowhead = 3,
     arrowsize = 1,
     showarrow = TRUE,
-    ax = -70,
+    ax = -20,
     ay = -90
   ) %>%
   plotly::layout(
