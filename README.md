@@ -1,7 +1,7 @@
 
 **The Covid 19 Dashboard for Sri Lanka**
 
-This [Covid 19 dashboard: the case of Sri Lanka](https://www.antoinesoetewey.com/files/coronavirus-dashboard.html) provides an overview of the 2019 Novel Coronavirus COVID-19 (2019-nCoV) epidemic for Sri Lanka. This dashboard is developed using the [flexdashboard](https://rmarkdown.rstudio.com/flexdashboard/) framework in R/R Studio, and by referring the following two dashboards:  
+This [Covid 19 dashboard: the case of Sri Lanka](https://pkwijekoon.github.io/covid19-dashboard/) provides an overview of the 2019 Novel Coronavirus COVID-19 (2019-nCoV) epidemic for Sri Lanka. This dashboard is developed using the [flexdashboard](https://rmarkdown.rstudio.com/flexdashboard/) framework in R/R Studio, and by referring the following two dashboards:  
 1. [dashboard](https://ramikrispin.github.io/coronavirus_dashboard/){target="_blank"} developed by Rami Krispin, and  
 2. [dashboard](https://www.antoinesoetewey.com/files/coronavirus-dashboard.html) developed by Antoine Soetewey.  
 
